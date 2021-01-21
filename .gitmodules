@@ -1,0 +1,6 @@
+[submodule "MCP-Root-Client-Python"]
+	path = MCP-Root-Client-Python
+	url = https://github.com/oliverhaagh/MCP-Root-Client-Python
+[submodule "MCP-Root"]
+	path = MCP-Root
+	url = https://github.com/oliverhaagh/MCP-Root
