@@ -1,87 +1,81 @@
 #!/bin/bash
 
-# script didn't work with /bin/sh in Ubuntu on WSL2 
-
-function delay () {
-  read -n 1 -s
-}
-
-rm -f *pem *sha384
+. common.sh
 
 
-
-echo "generate private key"
-delay
+step "generate private key"
 openssl ecparam -out ca_key.pem -name secp384r1 -genkey
+result 
 
-echo "generate CA cert"
-delay
+step "generate CA cert"
 openssl req -new -key ca_key.pem -x509 -nodes -days 3650 -out ca_cert.pem
+result
 
-echo "register CA cert in root CA service"
-delay
+step "register CA cert in root CA service"
 curl -XPOST --data-binary @ca_cert.pem -H "Content-Type: application/x-pem-file" http://localhost:8080/api/root
+result
 
-echo "TEST: get roots"
-delay
+step "TEST: get roots"
 curl http://localhost:8080/api/roots
+result
 
-echo "TEST: get specific root"
-delay
+step "TEST: get specific root"
 curl http://localhost:8080/api/root/1
+result
 
-echo "generate attestor key"
-delay
+step "generate attestor key"
 openssl ecparam -out attestor_private_key.pem -name secp384r1 -genkey
+result
 
-echo "generate attestor cert"
-delay
+step "generate attestor cert"
 openssl req -new -key attestor_private_key.pem -x509 -nodes -days 3650 -out attestor-cert.pem
+result
 
-echo "TEST: register attestor"
-delay
+step "TEST: register attestor"
 curl -XPOST --data-binary @attestor-cert.pem -H "Content-Type: application/pem-certificate-chain" http://localhost:8080/api/attestor
+result
 
-echo "TEST: get attestors"
-delay
+step "TEST: get attestors"
 curl http://localhost:8080/api/attestors
+result
 
-echo "TEST: get specific attestor"
-delay
+step "TEST: get specific attestor"
 curl http://localhost:8080/api/attestor/1
+result
 
-echo "creating attestation"
-delay
+step "creating attestation"
 openssl dgst -sha384 -sign attestor_private_key.pem ca_cert.pem | xxd -plain | tr -d "\n" > attestation.sha384 # openssl doesn't output signature as hex by default
+result
 
 data='{"attestorId":1,"rootCAid":1,"signature":"'$(cat attestation.sha384)'","algorithmIdentifier":"SHA384WithECDSA"}'
-echo "TEST: posting attestation: $data"
-delay
+step "TEST: posting attestation: $data"
 curl -XPOST -d "$data" -H "Content-Type: application/json" http://localhost:8080/api/attestation
+result
 
-echo "TEST: get attestations"
-delay
+step "TEST: get attestations"
 curl http://localhost:8080/api/attestations
+result
 
-echo "TEST: get specific attestation"
-delay
+step "TEST: get specific attestation"
 curl http://localhost:8080/api/attestation/1
+result
 
-echo "revoke attestation"
-delay
+step "revoke attestation"
 openssl dgst -sha384 -sign attestor_private_key.pem attestation.sha384 | xxd -plain | tr -d "\n" > revocation.sha384 # openssl doesn't output signature as hex by default
+result
 
 data='{"attestorId":1,"rootCAid":1,"attestationId":1,"signature":"'$(cat revocation.sha384)'","algorithmIdentifier":"SHA384WithECDSA"}'
-echo "TEST: revoking attesation: $data"
-delay
+step "TEST: revoking attestation: $data"
 curl -XPOST -d "$data" -H "Content-Type: application/json" http://localhost:8080/api/revocation
+result
 
-echo "TEST: get all revocations"
-delay
+step "TEST: get all revocations"
 curl http://localhost:8080/api/revocations
+result
 
-echo "TEST: get specific revocation"
-delay
+step "TEST: get specific revocation"
 curl http://localhost:8080/api/revocation/1
+result
+
 
 
